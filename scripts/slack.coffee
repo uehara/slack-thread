@@ -70,9 +70,12 @@ module.exports = (robot) ->
         if err
           msg.send err
 
-  robot.hear /^exit (.*) (.*)/i, (msg) ->
-    title = "#{msg.match[1]}"
-    tags = "#{msg.match[2]}"
+  robot.hear /^exit (.*)/i, (msg) ->
+    param = "#{msg.match[1]}"
+    temp = param.split /\ /
+    title = temp[0]
+    tags = temp[1] ? ""
+
     channel = msg.message.room
 
     getChannelFromName channel, (err, channelId) ->
