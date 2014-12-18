@@ -135,6 +135,9 @@ module.exports = (robot) ->
     array = tags.split /,/
     params = []
 
+    if array.length
+      return params
+
     for val, i in array
       params[i] = {name: val}
 
