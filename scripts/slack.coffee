@@ -132,11 +132,11 @@ module.exports = (robot) ->
         callback null, "OK"
 
   constructTags = (tags) ->
+    if !tags
+      return []
+
     array = tags.split /,/
     params = []
-
-    if array.length
-      return params
 
     for val, i in array
       params[i] = {name: val}
