@@ -6,11 +6,15 @@
 #   exit <title> <[tag,..]> - Archive thread
 
 module.exports = (robot) ->
+  moment = require 'moment-timezone'
+  Promise = require 'bluebird'
   Slack = require 'slack-node'
   slack = new Slack process.env.SLACK_API_TOKEN
-
   Qiita = require "qiita"
   qiita = new Qiita team: process.env.QIITA_TEAM_ID, token: process.env.QIITA_TEAM_TOKEN
+
+  # ユーザー名の辞書（ID:NAME）
+  users_dict = {}
 
   robot.hear /^thread (.*)/i, (msg) ->
     channel = "#{msg.match[1]}"
@@ -82,35 +86,88 @@ module.exports = (robot) ->
       getMessages channelId
 
     messages = ""
-    from = ""
+    from = null
     getMessages = (channelId, latest) ->
       param = {channel: channelId}
       if latest
         param.latest = latest
 
       slack.api "channels.history", param, (err, response) ->
-        for val, i in response.messages
-          if val.type == "message"
-            messages = val.text + "\n" + messages
+        i = 0
+        promiseLoop(->
+          new Promise((resolve, reject) ->
+            i = 0
+            resolve()
+          )
+        , ->
+          new Promise((resolve, reject) ->
+            resolve i < response.messages.length
+          )
+        , ->
+          new Promise((resolve, reject) ->
+            val = response.messages[i]
+            console.log i + ": " + moment(Math.round(val.ts)).add(9, 'hours').tz("Asia/Tokyo").format("MM/DD HH:mm") + ": " + val.user + ": " + val.text
+            unless from
+              match = /^created from (.*)/.exec(val.text)
+              if match
+                from = match[1]
 
-          match = /^created from (.*)/.exec(val.text)
-          unless match?
-            continue
+            findUserName val, (name) ->
+              match = /.*has joined the channel.*/.exec(val.text)
+              unless match
+                messages = "| " + moment(Math.round(val.ts)).add(9, 'hours').tz("Asia/Tokyo").format("MM/DD HH:mm") + " | " + name + " | " + val.text.replace(/\r?\n/g, "<br />") + "|\n" + messages
+                resolve()
+              else
+                resolve()
 
-          from = match[1]
-
-        if response.has_more
-          latest = response.messages[response.messages.length - 1].ts
-          getMessages channelId, latest
-        else
-          postToQiita messages, title, tags, (err, url) ->
-            if err
-              return msg.send err
-
-            postMessage from, "#{title}のまとめが作成されました\n" + url
-            removeChannel channelId, channel, (err, response) ->
+          )
+        , ->
+          new Promise((resolve, reject) ->
+            i++
+            resolve()
+          )
+        ).then ->
+          console.log "DONE!"
+          if response.has_more
+            latest = response.messages[response.messages.length - 1].ts
+            getMessages channelId, latest
+          else
+            messages = "| 時刻 | 発言者 | メッセージ |\n|:--:|:--:|:--|\n" + messages
+            postToQiita messages, title, tags, (err, url) ->
               if err
                 return msg.send err
+
+              postMessage from, "#{title}のまとめが作成されました\n" + url
+              removeChannel channelId, channel, (err, response) ->
+                if err
+                  return msg.send err
+
+  promiseLoop = (init, condition, callback, increment) ->
+    new Promise((resolve, reject) ->
+      init().then (_loop = ->
+        condition().then ((result) ->
+          if result
+            callback().then(increment).then _loop, reject
+          else
+            resolve()
+        ), reject
+      ), reject
+    )
+
+  findUserName = (val, callback) ->
+    if val.type and val.type is "message"
+      unless val.user
+        callback 'slack'
+      else
+        unless users_dict[val.user]
+          slack.api "users.info", {user: val.user}, (err, response) ->
+            if err
+              callback 'unknown'
+            else
+              users_dict[val.user] = response.user.name
+              callback users_dict[val.user]
+        else
+          callback users_dict[val.user]
 
   postToQiita = (messages, title, tags, callback) ->
     qiita.items.post title: title, body: messages, tags: constructTags(tags), coediting: true

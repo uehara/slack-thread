@@ -5,6 +5,7 @@
   "author": "Keita Moromizato <keita_moromizato@relationsgroup.co.jp>",
   "description": "A simple helpful robot for your Company",
   "dependencies": {
+    "bluebird": "^2.7.1",
     "hubot": "^2.10.0",
     "hubot-diagnostics": "0.0.1",
     "hubot-google-images": "^0.1.2",
@@ -19,6 +20,8 @@
     "hubot-shipit": "^0.1.1",
     "hubot-slack": "^3.2.1",
     "hubot-youtube": "^0.1.2",
+    "moment": "^2.9.0",
+    "moment-timezone": "^0.3.0",
     "qiita": "^1.2.0",
     "slack-node": "0.0.93"
   },
