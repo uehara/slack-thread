@@ -115,7 +115,7 @@ module.exports = (robot) ->
             findUserName val, (name) ->
               match = /.*has joined the channel.*/.exec(val.text)
               unless match
-                messages = "| " + moment(Math.round(val.ts)).add(9, 'hours').tz("Asia/Tokyo").format("MM/DD HH:mm") + " | " + name + " | " + val.text.replace(/\r?\n/g, "<br />") + "|\n" + messages
+                messages = "| " + moment(Math.round(val.ts)).add(9, 'hours').tz("Asia/Tokyo").format("MM/DD HH:mm") + " | " + name + " | " + val.text.replace(/\r?\n/g, "<br />").replace(/\&lt;/g,"<").replace(/\&gt;/g,">").replace(/\&amp;/g,"&") + "|\n" + messages
                 resolve()
               else
                 resolve()
